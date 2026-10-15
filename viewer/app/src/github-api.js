@@ -94,6 +94,12 @@ export class GithubApi {
   getGistFileContentAsJson(id) {
     logger.log('Fetching report from GitHub...', false);
 
+    // Gist ids are hexadecimal strings. Reject anything unexpected before using
+    // the value in cache keys or network request paths.
+    if (!/^[a-f0-9]{5,}$/i.test(id)) {
+      throw new Error('Invalid gist id');
+    }
+
     return this._auth.getAccessTokenIfLoggedIn().then(accessToken => {
       const headers = new Headers();
 
@@ -109,7 +115,8 @@ export class GithubApi {
         }
 
         // Always make the request to see if there's newer content.
-        return fetch(`https://api.github.com/gists/${id}`, {headers}).then(resp => {
+        const gistUrl = `https://api.github.com/gists/${encodeURIComponent(id)}`;
+        return fetch(gistUrl, {headers}).then(resp => {
           const remaining = Number(resp.headers.get('X-RateLimit-Remaining'));
           const limit = Number(resp.headers.get('X-RateLimit-Limit'));
           if (remaining < 10) {
